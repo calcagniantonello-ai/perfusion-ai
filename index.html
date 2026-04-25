@@ -9,6 +9,14 @@
 body { font-family: -apple-system; margin: 20px; }
 input, select, button { width: 100%; padding: 12px; margin: 6px 0; font-size: 16px; }
 button { background: black; color: white; border: none; }
+
+.legend {
+  font-size: 12px;
+  color: #666;
+  margin-top: -4px;
+  margin-bottom: 10px;
+}
+
 .box { margin-top: 20px; white-space: pre-line; }
 </style>
 </head>
@@ -17,16 +25,39 @@ button { background: black; color: white; border: none; }
 
 <h2>Perfusion AI</h2>
 
+<!-- rCBV -->
 <input id="rbv" placeholder="rCBV">
-<input id="ktrans" placeholder="Ktrans">
-<input id="adc" placeholder="ADC">
-<input id="weeks" placeholder="Settimane RT">
+<div class="legend">
+rCBV = relative cerebral blood volume (unità: rapporto adimensionale, tipicamente 0.5–5)
+</div>
 
+<!-- Ktrans -->
+<input id="ktrans" placeholder="Ktrans">
+<div class="legend">
+Ktrans = coefficiente di trasferimento (unità: min⁻¹ o 1/min, dipende dal modello Tofts)
+</div>
+
+<!-- ADC -->
+<input id="adc" placeholder="ADC">
+<div class="legend">
+ADC = Apparent Diffusion Coefficient (unità: ×10⁻³ mm²/s)
+</div>
+
+<!-- Weeks RT -->
+<input id="weeks" placeholder="Settimane RT">
+<div class="legend">
+Settimane dalla radioterapia (unità: settimane)
+</div>
+
+<!-- Trend -->
 <select id="trend">
 <option value="stable">stable</option>
 <option value="up">up</option>
 <option value="down">down</option>
 </select>
+<div class="legend">
+Trend evolutivo (clinico o radiologico: stabilità / progressione / regressione)
+</div>
 
 <button onclick="calc()">Calcola</button>
 
