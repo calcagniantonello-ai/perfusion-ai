@@ -38,14 +38,6 @@ button {
 .green { background: #e7f7ea; }
 .yellow { background: #fff6d6; }
 .red { background: #ffe5e5; }
-
-.badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  margin-top: 6px;
-}
 </style>
 </head>
 
@@ -54,13 +46,13 @@ button {
 <h2>Perfusion AI Advanced</h2>
 
 <input id="rbv" placeholder="rCBV">
-<div class="legend">rCBV: volume ematico relativo (0.5–5.0, ↑ = neoangiogenesi)</div>
+<div class="legend">rCBV: volume ematico relativo (rapporto adimensionale, tipico 0.5–5.0)</div>
 
 <input id="ktrans" placeholder="Ktrans">
 <div class="legend">Ktrans: permeabilità BBB (min⁻¹)</div>
 
 <input id="adc" placeholder="ADC">
-<div class="legend">ADC (×10⁻³ mm²/s, ↓ = alta cellularità)</div>
+<div class="legend">ADC (×10⁻³ mm²/s)</div>
 
 <input id="weeks" placeholder="Settimane RT">
 <div class="legend">Tempo da radioterapia (settimane)</div>
@@ -70,94 +62,122 @@ button {
 <option value="up">up</option>
 <option value="down">down</option>
 </select>
-<div class="legend">Trend evolutivo</div>
+<div class="legend">Trend evolutivo clinico/radiologico</div>
 
 <button onclick="calc()">Analizza</button>
 
 <div id="out" class="result"></div>
 
 <script>
+
+// converte "No" in null
+function parseValue(v){
+  if(!v || v.toLowerCase() === "no"){
+    return null;
+  }
+  return parseFloat(v);
+}
+
 function calc(){
 
-let r = parseFloat(document.getElementById("rbv").value);
-let k = parseFloat(document.getElementById("ktrans").value);
-let a = parseFloat(document.getElementById("adc").value);
-let w = parseInt(document.getElementById("weeks").value);
+let r = parseValue(document.getElementById("rbv").value);
+let k = parseValue(document.getElementById("ktrans").value);
+let a = parseValue(document.getElementById("adc").value);
+let wRaw = document.getElementById("weeks").value;
 let t = document.getElementById("trend").value;
 
 let score = 0;
+let used = 0;
 
 // rCBV
-if(r < 1) score += 0;
-else if(r < 1.75) score += 1;
-else if(r < 2.5) score += 2;
-else score += 3;
+if(r !== null){
+  used++;
+  if(r < 1) score += 0;
+  else if(r < 1.75) score += 1;
+  else if(r < 2.5) score += 2;
+  else score += 3;
+}
 
 // Ktrans
-if(k < 0.05) score += 0;
-else if(k < 0.1) score += 1;
-else if(k < 0.2) score += 2;
-else score += 3;
+if(k !== null){
+  used++;
+  if(k < 0.05) score += 0;
+  else if(k < 0.1) score += 1;
+  else if(k < 0.2) score += 2;
+  else score += 3;
+}
 
 // ADC
-if(a > 1.4) score += 0;
-else if(a > 1.2) score += 1;
-else if(a > 1.0) score += 2;
-else score += 3;
+if(a !== null){
+  used++;
+  if(a > 1.4) score += 0;
+  else if(a > 1.2) score += 1;
+  else if(a > 1.0) score += 2;
+  else score += 3;
+}
 
-// clinica
-if(w < 12) score -= 1;
+// settimane RT
+let w = parseInt(wRaw);
+if(!isNaN(w)){
+  used++;
+  if(w < 12) score -= 1;
+}
+
+// trend
 if(t === "up") score += 1;
 if(t === "down") score -= 1;
 
-// probabilità
+// gestione dati insufficienti
+if(used === 0){
+  document.getElementById("out").className = "result yellow";
+  document.getElementById("out").innerText =
+  "Dati insufficienti per la valutazione";
+  return;
+}
+
+// diagnosi base
+let dx = "";
+let cls = "yellow";
 let tumorProb = Math.min(95, Math.max(5, score * 12));
 let necrosisProb = 100 - tumorProb;
 
-// diagnosi
-let dx = "";
-let cls = "";
-let badge = "";
-
-if(r > 2.5 && a < 1.0){
+// override biologici
+if(r !== null && a !== null && r > 2.5 && a < 1.0){
 dx = "Tumore attivo (override biologico)";
 cls = "red";
-badge = "HIGH CONFIDENCE TUMOR";
 tumorProb = 90;
 necrosisProb = 10;
 }
-else if(r < 1.0 && a > 1.5){
+else if(r !== null && a !== null && r < 1.0 && a > 1.5){
 dx = "Radionecrosi (override biologico)";
 cls = "green";
-badge = "HIGH CONFIDENCE NECROSIS";
 tumorProb = 10;
 necrosisProb = 90;
 }
 else if(score <= 3){
 dx = "Necrosi / Pseudoprogressione";
 cls = "green";
-badge = "LOW PROBABILITY TUMOR";
 }
 else if(score <= 6){
 dx = "Indeterminato";
 cls = "yellow";
-badge = "INTERMEDIATE RISK";
 }
 else{
-dx = "Probabile tumore attivo / progressione";
+dx = "Probabile progressione tumorale";
 cls = "red";
-badge = "HIGH PROBABILITY TUMOR";
 }
 
-// warning clinici
+// warning semplici
 let warnings = [];
 
-if(r > 3.5) warnings.push("rCBV molto elevato → forte neoangiogenesi");
-if(a < 0.8) warnings.push("ADC molto basso → alta cellularità");
-if(k > 0.25) warnings.push("Ktrans elevato → BBB altamente permeabile");
-if(w < 6) warnings.push("Finestra temporale precoce post-RT → possibile pseudoprogressione");
+if(r !== null && r > 3.5) warnings.push("rCBV elevato");
+if(a !== null && a < 0.8) warnings.push("ADC molto basso");
+if(k !== null && k > 0.25) warnings.push("Ktrans elevato");
+if(!isNaN(w) && w < 6) warnings.push("Post-RT precoce");
 
-// output
+let warningText = warnings.length ? "\nWARNING:\n- " + warnings.join("\n- ") : "";
+
+// output finale
 document.getElementById("out").className = "result " + cls;
 
 document.getElementById("out").innerText =
@@ -165,12 +185,13 @@ document.getElementById("out").innerText =
 "Diagnosi: " + dx + "\n" +
 "Score: " + score + "/10\n\n" +
 "Probabilità tumore: " + tumorProb + "%\n" +
-"Probabilità necrosi: " + necrosisProb + "%\n\n" +
-"STATUS: " + badge + "\n\n" +
-(warnings.length ? "WARNING:\n- " + warnings.join("\n- ") : "No red flags");
+"Probabilità necrosi: " + necrosisProb + "%\n" +
+"Parametri utilizzati: " + used +
+warningText;
 
 }
 </script>
 
 </body>
 </html>
+
